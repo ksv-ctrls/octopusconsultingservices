@@ -1,0 +1,25 @@
+services:
+  # 1. Express Backend Web Service
+  - type: web
+    name: octopus-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start --prefix backend
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+
+  # 2. React + Vite Frontend Static Site
+  - type: web
+    name: octopus-frontend
+    env: static
+    plan: free
+    buildCommand: npm install && npm run build --prefix frontend
+    publishPath: frontend/dist
+    routes:
+      # Rewrites unmatched routes to index.html for React router support
+      - src: /*
+        dest: /index.html
