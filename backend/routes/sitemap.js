@@ -1,5 +1,9 @@
-const BASE_URL = "";
-async function handleGetSitemap() {
+export async function handleGetSitemap(req, res) {
+  // Use host from request headers to construct BASE_URL dynamically
+  const host = req.headers.host || "octopusconsulting.in";
+  const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  const BASE_URL = `${protocol}://${host}`;
+
   const paths = [
     { p: "/", c: "weekly", pr: "1.0" },
     { p: "/projects", c: "weekly", pr: "0.9" },
@@ -15,8 +19,7 @@ async function handleGetSitemap() {
     ),
     "</urlset>",
   ].join("\n");
-  return new Response(xml, {
-    headers: { "Content-Type": "application/xml", "Cache-Control": "public, max-age=3600" },
-  });
+  res.header("Content-Type", "application/xml");
+  res.header("Cache-Control", "public, max-age=3600");
+  res.send(xml);
 }
-export { handleGetSitemap };

@@ -24,7 +24,6 @@ frontend/assets/
 frontend/wrangler.json
 frontend/.assetsignore
 backend/assets/
-backend/server.js
 backend/wrangler.jsonc
 
 # Wrangler / Cloudflare
