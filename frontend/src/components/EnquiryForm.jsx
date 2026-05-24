@@ -58,7 +58,8 @@ function EnquiryForm({
     setErrors({});
     setSubmitting(true);
     try {
-      const res = await fetch("/api/enquiry", {
+      const baseUrl = import.meta.env.VITE_API_URL || "";
+      const res = await fetch(`${baseUrl}/api/enquiry`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

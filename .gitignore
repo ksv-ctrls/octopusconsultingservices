@@ -17,6 +17,9 @@ dist-ssr
 *.local
 .env
 .env.*
+!.env.example
+!*.env.example
+
 
 
 # Merged build output
