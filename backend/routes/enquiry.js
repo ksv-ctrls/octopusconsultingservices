@@ -4,6 +4,7 @@ import { Resend } from "resend";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import dns from "dns/promises";
 
 // Get current directory in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -321,4 +322,96 @@ export const handleEnquiry = async (req, res) => {
     console.error("Enquiry handler error:", error.message);
     return res.status(500).json({ ok: false, error: "Could not save enquiry" });
   }
+};
+
+export const handleDebugEmail = async (req, res) => {
+  const diagnostics = {};
+  
+  // 1. Resolve credentials
+  const apiKey = (process.env.RESEND_API_KEY || process.env.resend_api || "").trim();
+  const destinationEmail = (process.env.EMAIL_DESTINATION || process.env.email || "").trim();
+
+  diagnostics.env = {
+    RESEND_API_KEY: apiKey ? `defined (prefix: ${apiKey.slice(0, 5)}... suffix: ${apiKey.slice(-4)})` : "NOT_DEFINED",
+    resend_api: process.env.resend_api ? `defined (prefix: ${process.env.resend_api.slice(0, 5)}... suffix: ${process.env.resend_api.slice(-4)})` : "NOT_DEFINED",
+    EMAIL_DESTINATION: destinationEmail || "NOT_DEFINED",
+    email: process.env.email || "NOT_DEFINED",
+    MONGODB_URI: process.env.MONGODB_URI ? "defined" : "NOT_DEFINED",
+    NODE_ENV: process.env.NODE_ENV || "NOT_DEFINED",
+  };
+
+  // 2. DNS resolution tests
+  try {
+    const lookup = await dns.lookup("api.resend.com");
+    diagnostics.dnsLookup = { success: true, address: lookup.address, family: lookup.family };
+  } catch (err) {
+    diagnostics.dnsLookup = { success: false, error: err.message };
+  }
+
+  try {
+    const resolve = await dns.resolve4("api.resend.com");
+    diagnostics.dnsResolve = { success: true, ips: resolve };
+  } catch (err) {
+    diagnostics.dnsResolve = { success: false, error: err.message };
+  }
+
+  // 3. Direct API fetch (HTTP Layer Connection Test)
+  if (apiKey) {
+    try {
+      const fetchRes = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: "onboarding@resend.dev",
+          to: [destinationEmail || "gkr2602@gmail.com"],
+          subject: "Debug: Connection & Sandbox Test via Fetch",
+          html: "<p>This is a direct API fetch debug email from Octopus Backend.</p>"
+        })
+      });
+      const fetchStatus = fetchRes.status;
+      const fetchText = await fetchRes.text();
+      let fetchJson;
+      try {
+        fetchJson = JSON.parse(fetchText);
+      } catch (_) {
+        fetchJson = fetchText;
+      }
+      diagnostics.directFetchTest = {
+        status: fetchStatus,
+        response: fetchJson
+      };
+    } catch (err) {
+      diagnostics.directFetchTest = { success: false, error: err.message, stack: err.stack };
+    }
+  } else {
+    diagnostics.directFetchTest = { success: false, error: "Skipped: No API key available" };
+  }
+
+  // 4. Resend SDK Test
+  const resend = getResend();
+  if (!resend) {
+    diagnostics.resendSdk = { success: false, error: "SDK could not be initialized (missing API key)" };
+  } else {
+    try {
+      const emailPayload = {
+        from: "onboarding@resend.dev",
+        to: [destinationEmail || "gkr2602@gmail.com"],
+        subject: "Debug Test Email (SDK)",
+        html: "<p>This is a testing email from the Resend SDK.</p>"
+      };
+      const result = await resend.emails.send(emailPayload);
+      diagnostics.resendSdk = { success: true, ...result };
+    } catch (err) {
+      diagnostics.resendSdk = { success: false, error: err.message, stack: err.stack };
+    }
+  }
+
+  return res.json({
+    ok: true,
+    timestamp: new Date().toISOString(),
+    diagnostics
+  });
 };

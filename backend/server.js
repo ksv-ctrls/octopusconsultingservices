@@ -13,7 +13,7 @@ const __dirname = path.dirname(__filename);
 // MUST be called before any other module reads process.env
 dotenv.config({ path: path.resolve(__dirname, ".env") });
 
-import { handleEnquiry } from "./routes/enquiry.js";
+import { handleEnquiry, handleDebugEmail } from "./routes/enquiry.js";
 import { handleGetSitemap } from "./routes/sitemap.js";
 import { connect } from "./lib/mongodb.js";
 
@@ -25,6 +25,7 @@ app.use(express.json());
 
 // Routes
 app.post("/api/enquiry", handleEnquiry);
+app.get("/api/debug-email", handleDebugEmail);
 app.get("/api/sitemap", handleGetSitemap);
 app.get("/sitemap.xml", handleGetSitemap);
 
