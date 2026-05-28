@@ -1,14 +1,52 @@
 import { z } from "zod";
 import { connect, getCollection } from "../lib/mongodb.js";
 import { Resend } from "resend";
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Get current directory in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Explicitly load .env from backend and root folders to support multiple start scripts and environments
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
+
+// Environment diagnostic logs for production troubleshooting
+(function checkEnvironment() {
+  console.log("--- Production Enquiry Environment Diagnostics ---");
+  const keysToCheck = [
+    "RESEND_API_KEY",
+    "resend_api",
+    "EMAIL_DESTINATION",
+    "email",
+    "MONGODB_URI",
+    "NODE_ENV"
+  ];
+  keysToCheck.forEach(key => {
+    const val = process.env[key];
+    if (val) {
+      let displayVal = "defined";
+      if (key === "EMAIL_DESTINATION" || key === "email") {
+        displayVal = val;
+      } else if (key === "MONGODB_URI" || key === "RESEND_API_KEY" || key === "resend_api") {
+        displayVal = val.slice(0, 5) + "..." + val.slice(-4);
+      }
+      console.log(`Environment key [${key}]: ${displayVal}`);
+    } else {
+      console.log(`Environment key [${key}]: NOT DEFINED`);
+    }
+  });
+  console.log("-------------------------------------------------");
+})();
 
 let _resend;
 function getResend() {
   if (!_resend) {
-    const apiKey = process.env.RESEND_API_KEY;
+    const apiKey = (process.env.RESEND_API_KEY || process.env.resend_api || "").trim();
     if (!apiKey) {
-      console.warn("Resend WARNING: RESEND_API_KEY is not defined in environment variables!");
+      console.warn("Resend WARNING: Neither RESEND_API_KEY nor resend_api is defined in environment variables!");
       return null;
     }
     console.log("Resend: Initializing Resend SDK...");
@@ -70,10 +108,10 @@ export const handleEnquiry = async (req, res) => {
     });
     console.log(`Enquiry saved: ${data.name} (${data.phone})`);
 
-    // Send email via Resend
-    const destinationEmail = process.env.EMAIL_DESTINATION;
+    // Send email via Resend with fallback check for root .env spelling
+    const destinationEmail = (process.env.EMAIL_DESTINATION || process.env.email || "").trim();
     console.log(`Resend: Attempting to send enquiry email...`);
-    console.log(`Resend: Destination email is configured as: "${destinationEmail}"`);
+    console.log(`Resend: Destination email is resolved as: "${destinationEmail}"`);
 
     if (destinationEmail) {
       const resend = getResend();

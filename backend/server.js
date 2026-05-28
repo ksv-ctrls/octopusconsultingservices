@@ -6,8 +6,12 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// Resolve __filename and __dirname early for absolute paths
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 // MUST be called before any other module reads process.env
-dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 import { handleEnquiry } from "./routes/enquiry.js";
 import { handleGetSitemap } from "./routes/sitemap.js";
@@ -65,8 +69,6 @@ async function startServer() {
     app.listen(port, () => {
       console.log(`Backend running on port ${port}`);
       try {
-        const __filename = fileURLToPath(import.meta.url);
-        const __dirname = path.dirname(__filename);
         // Write port number to root directory .backend-port
         fs.writeFileSync(path.join(__dirname, "../.backend-port"), port.toString());
       } catch (_) {}
